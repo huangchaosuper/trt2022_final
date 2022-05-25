@@ -1,0 +1,3 @@
+docker stop trt2022_final_20220525
+docker rm trt2022_final_20220525
+docker rmi trt2022_final:20220525
