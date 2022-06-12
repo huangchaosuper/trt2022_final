@@ -26,8 +26,8 @@ class TrtExecute(object):
         r0: median of relative difference of output 0
         a1: maximum of absolute difference of output 1
         r1: median of relative difference of output 1
-        a2: maximum of absolute difference of output 1
-        r2: median of relative difference of output 1
+        a2: maximum of absolute difference of output 2
+        r2: median of relative difference of output 2
         ----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
           bs|      lt|       tp|       a0|       r0|       a1|       r1|       a2|       r2| output check
         ----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
