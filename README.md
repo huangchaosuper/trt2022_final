@@ -69,15 +69,31 @@ OCR的模型目前业界已经非常成熟，而且识别率已经达到工业�
 
 本项目的主要目的是使用`nvidia`的`TensorRT`GPU推理引擎，提升`TrOCR`的推理时间，在保证极高准确率的前提下，性能达到工业界的使用水平，使`TrOCR`具有商业使用价值
 
-随着`nvidia`发布最新的`H100`框架，对`transformer`模型进一步友好支持，此项目的商业价值也将得到体现。 
+随着`nvidia`发布最新的`Hopper`框架，对`transformer`模型进一步友好支持，此项目的商业价值也将得到体现。 
 
----
 
-以下内容待更新
+## 原始网络结构改造
 
----
+对原始模型进行调研后，采用以下pytorch导出代码进行模型改造
 
-- 本模型的输入输出数据结构如下
+```python
+  torch.onnx.export(
+      model,
+      onnx_dummy_inputs,
+      onnx_file,
+      verbose=True,
+      opset_version=13,
+      do_constant_folding=True,
+      input_names=["pixel_values", "decoder_input_ids"],
+      output_names=["generated_ids", "last_hidden_state", "pooler_output"],
+      dynamic_axes={"pixel_values": {0: "batch_size"}, "decoder_input_ids": {0: "batch_size"},
+                    "generated_ids": {0: "batch_size"}, "last_hidden_state": {0: "batch_size"},
+                    "pooler_output": {0: "batch_size"}
+                    }
+      )
+```
+
+导出后的模型输入输出结构如下
 
 ``` yaml
   inputs:
@@ -88,11 +104,6 @@ OCR的模型目前业界已经非常成熟，而且识别率已经达到工业�
       last_hidden_state=bs,578,384
       pooler_output=bs,384
 ```
-
-
-
-### 模型优化的难点
-- 模型优化思路为PT->onnx->trt，如何将pt转换为onnx？第一步就需要对原始网络结构进行改造
 
 
 ```shell
@@ -106,124 +117,82 @@ trtexec \
 
 ```
 
-- 在3050显卡上TRT执行效率如下
-
-TF32
-
-```shell
-[05/29/2022-21:55:54] [I] === Trace details ===
-[05/29/2022-21:55:54] [I] Trace averages of 10 runs:
-[05/29/2022-21:55:54] [I] Average on 10 runs - GPU latency: 33.8371 ms - Host latency: 35.1268 ms (end to end 35.1314 ms, enqueue 34.6321 ms)
-[05/29/2022-21:55:54] [I] Average on 10 runs - GPU latency: 33.5586 ms - Host latency: 34.8392 ms (end to end 34.8435 ms, enqueue 34.35 ms)
-[05/29/2022-21:55:54] [I] Average on 10 runs - GPU latency: 33.717 ms - Host latency: 35.0445 ms (end to end 35.0494 ms, enqueue 34.5316 ms)
-[05/29/2022-21:55:54] [I] Average on 10 runs - GPU latency: 33.6805 ms - Host latency: 34.978 ms (end to end 34.9823 ms, enqueue 34.4815 ms)
-[05/29/2022-21:55:54] [I] Average on 10 runs - GPU latency: 33.5955 ms - Host latency: 34.8849 ms (end to end 34.8894 ms, enqueue 34.3928 ms)
-[05/29/2022-21:55:54] [I] Average on 10 runs - GPU latency: 33.6902 ms - Host latency: 35.0375 ms (end to end 35.0424 ms, enqueue 34.5155 ms)
-[05/29/2022-21:55:54] [I] Average on 10 runs - GPU latency: 33.6041 ms - Host latency: 35.0108 ms (end to end 35.016 ms, enqueue 34.4454 ms)
-[05/29/2022-21:55:54] [I] Average on 10 runs - GPU latency: 33.6895 ms - Host latency: 35.1783 ms (end to end 35.1835 ms, enqueue 34.6011 ms)
-[05/29/2022-21:55:54] [I] 
-[05/29/2022-21:55:54] [I] === Performance summary ===
-[05/29/2022-21:55:54] [I] Throughput: 28.9757 qps
-[05/29/2022-21:55:54] [I] Latency: min = 34.6697 ms, max = 36.1511 ms, mean = 35.0057 ms, median = 34.916 ms, percentile(99%) = 36.1511 ms
-[05/29/2022-21:55:54] [I] End-to-End Host Latency: min = 34.6746 ms, max = 36.156 ms, mean = 35.0105 ms, median = 34.9216 ms, percentile(99%) = 36.156 ms
-[05/29/2022-21:55:54] [I] Enqueue Time: min = 34.2643 ms, max = 35.6603 ms, mean = 34.4884 ms, median = 34.4119 ms, percentile(99%) = 35.6603 ms
-[05/29/2022-21:55:54] [I] H2D Latency: min = 0.788696 ms, max = 1.17773 ms, mean = 0.828755 ms, median = 0.80957 ms, percentile(99%) = 1.17773 ms
-[05/29/2022-21:55:54] [I] GPU Compute Time: min = 33.4643 ms, max = 34.8665 ms, mean = 33.664 ms, median = 33.5995 ms, percentile(99%) = 34.8665 ms
-[05/29/2022-21:55:54] [I] D2H Latency: min = 0.289551 ms, max = 0.793457 ms, mean = 0.512931 ms, median = 0.497314 ms, percentile(99%) = 0.793457 ms
-[05/29/2022-21:55:54] [I] Total Host Walltime: 3.07153 s
-[05/29/2022-21:55:54] [I] Total GPU Compute Time: 2.9961 s
-[05/29/2022-21:55:54] [W] * Throughput may be bound by Enqueue Time rather than GPU Compute and the GPU may be under-utilized.
-[05/29/2022-21:55:54] [W]   If not already in use, --useCudaGraph (utilize CUDA graphs where possible) may increase the throughput.
-[05/29/2022-21:55:54] [I] Explanations of the performance metrics are printed in the verbose logs.
-
-
-[05/29/2022-22:03:19] [I] === Trace details ===
-[05/29/2022-22:03:19] [I] Trace averages of 10 runs:
-[05/29/2022-22:03:19] [I] Average on 10 runs - GPU latency: 65.2362 ms - Host latency: 67.8229 ms (end to end 67.8285 ms, enqueue 66.8017 ms)
-[05/29/2022-22:03:19] [I] Average on 10 runs - GPU latency: 65.1597 ms - Host latency: 67.7441 ms (end to end 67.7487 ms, enqueue 66.7372 ms)
-[05/29/2022-22:03:19] [I] Average on 10 runs - GPU latency: 65.2015 ms - Host latency: 67.9667 ms (end to end 67.972 ms, enqueue 66.8608 ms)
-[05/29/2022-22:03:19] [I] Average on 10 runs - GPU latency: 65.3969 ms - Host latency: 68.0103 ms (end to end 68.0148 ms, enqueue 66.9929 ms)
-[05/29/2022-22:03:19] [I] 
-[05/29/2022-22:03:19] [I] === Performance summary ===
-[05/29/2022-22:03:19] [I] Throughput: 14.9463 qps
-[05/29/2022-22:03:19] [I] Latency: min = 67.447 ms, max = 68.8347 ms, mean = 67.8894 ms, median = 67.7964 ms, percentile(99%) = 68.8347 ms
-[05/29/2022-22:03:19] [I] End-to-End Host Latency: min = 67.4512 ms, max = 68.8386 ms, mean = 67.8943 ms, median = 67.8026 ms, percentile(99%) = 68.8386 ms
-[05/29/2022-22:03:19] [I] Enqueue Time: min = 66.5347 ms, max = 67.8513 ms, mean = 66.869 ms, median = 66.8098 ms, percentile(99%) = 67.8513 ms
-[05/29/2022-22:03:19] [I] H2D Latency: min = 1.53021 ms, max = 1.97266 ms, mean = 1.59597 ms, median = 1.57715 ms, percentile(99%) = 1.97266 ms
-[05/29/2022-22:03:19] [I] GPU Compute Time: min = 64.983 ms, max = 66.3162 ms, mean = 65.2789 ms, median = 65.2197 ms, percentile(99%) = 66.3162 ms
-[05/29/2022-22:03:19] [I] D2H Latency: min = 0.57666 ms, max = 1.36975 ms, mean = 1.01454 ms, median = 1.00183 ms, percentile(99%) = 1.36975 ms
-[05/29/2022-22:03:19] [I] Total Host Walltime: 3.14459 s
-[05/29/2022-22:03:19] [I] Total GPU Compute Time: 3.06811 s
-[05/29/2022-22:03:19] [W] * Throughput may be bound by Enqueue Time rather than GPU Compute and the GPU may be under-utilized.
-[05/29/2022-22:03:19] [W]   If not already in use, --useCudaGraph (utilize CUDA graphs where possible) may increase the throughput.
-[05/29/2022-22:03:19] [I] Explanations of the performance metrics are printed in the verbose logs.
-
-```
-
-FP16
-```shell
-[05/29/2022-22:18:25] [I] === Trace details ===
-[05/29/2022-22:18:25] [I] Trace averages of 10 runs:
-[05/29/2022-22:18:25] [I] Average on 10 runs - GPU latency: 32.2999 ms - Host latency: 34.8031 ms (end to end 34.8144 ms, enqueue 33.7707 ms)
-[05/29/2022-22:18:25] [I] Average on 10 runs - GPU latency: 32.1234 ms - Host latency: 34.618 ms (end to end 34.6294 ms, enqueue 33.5885 ms)
-[05/29/2022-22:18:25] [I] Average on 10 runs - GPU latency: 32.4685 ms - Host latency: 34.9879 ms (end to end 35.0003 ms, enqueue 33.9485 ms)
-[05/29/2022-22:18:25] [I] Average on 10 runs - GPU latency: 32.3111 ms - Host latency: 34.8197 ms (end to end 34.832 ms, enqueue 33.7871 ms)
-[05/29/2022-22:18:25] [I] Average on 10 runs - GPU latency: 32.3106 ms - Host latency: 34.8027 ms (end to end 34.8139 ms, enqueue 33.7733 ms)
-[05/29/2022-22:18:25] [I] Average on 10 runs - GPU latency: 32.5087 ms - Host latency: 35.0325 ms (end to end 35.0429 ms, enqueue 33.9902 ms)
-[05/29/2022-22:18:25] [I] Average on 10 runs - GPU latency: 32.3241 ms - Host latency: 34.8221 ms (end to end 34.833 ms, enqueue 33.7923 ms)
-[05/29/2022-22:18:25] [I] Average on 10 runs - GPU latency: 32.3076 ms - Host latency: 34.7997 ms (end to end 34.8115 ms, enqueue 33.7696 ms)
-[05/29/2022-22:18:25] [I] Average on 10 runs - GPU latency: 32.4467 ms - Host latency: 34.9571 ms (end to end 34.9671 ms, enqueue 33.9204 ms)
-[05/29/2022-22:18:25] [I] 
-[05/29/2022-22:18:25] [I] === Performance summary ===
-[05/29/2022-22:18:25] [I] Throughput: 29.5527 qps
-[05/29/2022-22:18:25] [I] Latency: min = 34.2395 ms, max = 36.4373 ms, mean = 34.8425 ms, median = 34.7981 ms, percentile(99%) = 36.4373 ms
-[05/29/2022-22:18:25] [I] End-to-End Host Latency: min = 34.2493 ms, max = 36.4438 ms, mean = 34.8538 ms, median = 34.8093 ms, percentile(99%) = 36.4438 ms
-[05/29/2022-22:18:25] [I] Enqueue Time: min = 33.3905 ms, max = 35.3684 ms, mean = 33.8134 ms, median = 33.7675 ms, percentile(99%) = 35.3684 ms
-[05/29/2022-22:18:25] [I] H2D Latency: min = 1.5199 ms, max = 1.57434 ms, mean = 1.53397 ms, median = 1.52936 ms, percentile(99%) = 1.57434 ms
-[05/29/2022-22:18:25] [I] GPU Compute Time: min = 31.9314 ms, max = 33.877 ms, mean = 32.3422 ms, median = 32.2915 ms, percentile(99%) = 33.877 ms
-[05/29/2022-22:18:25] [I] D2H Latency: min = 0.575684 ms, max = 1.01001 ms, mean = 0.966306 ms, median = 0.967651 ms, percentile(99%) = 1.01001 ms
-[05/29/2022-22:18:25] [I] Total Host Walltime: 3.07924 s
-[05/29/2022-22:18:25] [I] Total GPU Compute Time: 2.94314 s
-[05/29/2022-22:18:25] [W] * Throughput may be bound by Enqueue Time rather than GPU Compute and the GPU may be under-utilized.
-[05/29/2022-22:18:25] [W]   If not already in use, --useCudaGraph (utilize CUDA graphs where possible) may increase the throughput.
-[05/29/2022-22:18:25] [I] Explanations of the performance metrics are printed in the verbose logs.
-
-```
-
-
-## 原始网络结构改造
-
-```shell
-pip3 install transformers[onnx]
-```
-
-```shell
-python -m transformers.onnx --model=./model/weights_chineseocr ./model/onnx/
-```
-
-如果模型可以容易地跑在TensorRT上而且性能很好，就没有必要选它作为参赛题目并在这里长篇大论了。相信你选择了某个模型作为参赛题目必然有选择它的理由。  
-请介绍一下在模型在导出时、或用polygraphy/trtexec解析时、或在TensorRT运行时，会遇到什么问题。换句话说，针对这个模型，我们为什么需要额外的工程手段。
 
 ## 优化过程
-这一部分是报告的主体。请把自己假定为老师，为TensorRT的初学者讲述如何从原始模型出发，经过一系列开发步骤，得到优化后的TensorRT模型。  
 
-建议：
-- 分步骤讲清楚开发过程
-- 最好能介绍为什么需要某个特别步骤，通过这个特别步骤解决了什么问题
-  - 比如，通过Nsight Systems绘制timeline做了性能分析，发现attention时间占比高且有优化空间（贴图展示分析过程），所以决定要写plugin。然后介绍plugin的设计与实现，并在timeline上显示attention这一部分的性能改进。
+- 进行 pytorch 到 onnx模型 转换，改造模型预处理并适配输入和输出维度
+- 采用 TF32和FP16进行模型转换
+  - TF32 精度可接受，性能提升 50%，详情见下表
+  - FP16 精度溢出，性能提升 120%， 详情见下表
+
+性能提升计算公式：（ORT-X）/ORT × 100%
+
+| 类型\批次         | 1      | 4      | 8      | 16      |
+|---------------|:-------|:-------|:-------|:--------|
+| ORT           | 12.591 | 42.517 | 82.653 | 154.984 |
+| TRT（TF32）     | 10.332 | 33.778 | 65.690 | 127.713 |
+| TRT（TF32）性能提升 | 17.94% | 20.55% | 20.52% | 17.60%  |
+| TRT（FP16）     | 5.324  | 17.208 | 32.544 | 63.444  |
+| TRT（FP16）性能提升 | 57.72% | 59.52% | 60.62% | 59.06%  |
+
+下一步计划：
+
+- 尝试修正FP16精度溢出问题
 
 ## 精度与加速效果
-这一部分介绍优化模型在云主机上的运行效果，需要分两部分说明：  
-- 精度：报告与原始模型进行精度对比测试的结果，验证精度达标。
-  - 这里的精度测试指的是针对“原始模型”和“TensorRT优化模型”分别输出的数据（tensor）进行数值比较。请给出绝对误差和相对误差的统计结果（至少包括最大值、平均值与中位数）。
-  - 使用训练好的权重和有意义的输入数据更有说服力。如果选手使用了随机权重和输入数据，请在这里注明。  
-  - 在精度损失较大的情况下，鼓励选手用训练好的权重和测试数据集对模型优化前与优化后的准确度指标做全面比较，以增强说服力
-- 性能：最好用图表展示不同batch size或sequence length下性能加速效果。
-  - 一般用原始模型作为参考标准；若额外使用ONNX Runtime作为参考标准则更好。  
-  - 一般提供模型推理时间的加速比即可；若能提供压力测试下的吞吐提升则更好。
 
-请注意：
-- 相关测试代码也需要包含在代码仓库中，可被复现。
-- 请写明云主机的软件硬件环境，方便他人参考。  
+因为pytorch的模型与onnx和trt的模型结构有调整。即在pytorch导出为onnx模型时模型结构有调整，因此仅对onnx和trt版本做比较。
 
-## Bug报告（可选）
+- 在3050显卡上TRT执行效率如下
+
+onnx throughput: 
+```python
+{1: 12.590796533333334, 4: 42.517999266666656, 8: 82.6528838, 16: 154.98422660000003}
+```
+
+TF32 throughput 及 精度对比
+```shell
+bs: Batch Size
+lt: Latency (ms)
+tp: throughput (word/s)
+a0: maximum of absolute difference of output 0
+r0: median of relative difference of output 0
+a1: maximum of absolute difference of output 1
+r1: median of relative difference of output 1
+a2: maximum of absolute difference of output 1
+r2: median of relative difference of output 1
+----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
+  bs|      lt|       tp|       a0|       r0|       a1|       r1|       a2|       r2| output check
+----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
+        
+ 1,  10.332,9.678e+01,5.941e-03,1.079e-04,5.159e-02,1.715e-03,4.619e-04,1.356e-03, Good
+16, 127.713,1.253e+02,8.695e-03,1.861e-04,2.893e-02,1.425e-03,8.621e-04,1.043e-03, Good
+ 4,  33.778,1.184e+02,9.278e-03,1.671e-04,3.284e-02,1.486e-03,4.620e-04,9.444e-04, Good
+ 8,  65.690,1.218e+02,9.148e-03,3.099e-04,3.284e-02,1.317e-03,4.620e-04,7.367e-04, Good
+
+```
+
+FP16 throughput 及 精度对比
+
+```shell
+bs: Batch Size
+lt: Latency (ms)
+tp: throughput (word/s)
+a0: maximum of absolute difference of output 0
+r0: median of relative difference of output 0
+a1: maximum of absolute difference of output 1
+r1: median of relative difference of output 1
+a2: maximum of absolute difference of output 1
+r2: median of relative difference of output 1
+----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
+  bs|      lt|       tp|       a0|       r0|       a1|       r1|       a2|       r2| output check
+----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
+        
+ 1,   5.324,1.878e+02,8.797e+00,2.526e-01,4.281e+00,1.122e+00,5.385e-01,1.247e+00, Bad
+16,  63.444,2.522e+02,1.229e+01,3.306e-01,4.957e+00,1.130e+00,5.964e-01,1.243e+00, Bad
+ 4,  17.208,2.325e+02,1.222e+01,3.209e-01,4.281e+00,1.130e+00,5.948e-01,1.256e+00, Bad
+ 8,  32.544,2.458e+02,1.229e+01,3.389e-01,4.281e+00,1.129e+00,5.964e-01,1.227e+00, Bad
+
+
+
+```

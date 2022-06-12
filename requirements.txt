@@ -24,3 +24,7 @@ transformers==4.19.2
 typing-extensions==4.2.0
 urllib3==1.26.9
 wheel==0.37.1
+pycuda==2021.1
+cuda-python==11.6.1
+nvidia-tensorrt==8.2.3.0
+onnxruntime-gpu==1.11.1

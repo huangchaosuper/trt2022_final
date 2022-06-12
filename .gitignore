@@ -131,3 +131,6 @@ dmypy.json
 .idea
 model
 test_data
+.npz
+
+test.py

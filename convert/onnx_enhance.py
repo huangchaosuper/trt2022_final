@@ -1,25 +1,25 @@
 import os
 
 import torch
-from transformers import TrOCRProcessor, VisionEncoderDecoderModel, BertTokenizer
+from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
 from PIL import Image
 from logger import logger
 
 
-class ConvertOnnx(object):
-    def __init__(self, pretrained_model_path, model_path):
+class OnnxEnhance(object):
+    def __init__(self, pretrained_model_path, pt_model_path, onnx_model_path):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.pretrained_model_path = pretrained_model_path
-        self.model_path = model_path
-        self.batch_size = 10
+        self.model_path = pt_model_path
+        self.onnx_model_path = onnx_model_path
+        self.batch_size = 1
         self.decoder_start_token_id = 0
         ##self.processor = TrOCRProcessor.from_pretrained(pretrained_model_path)
         # self.processor = TrOCRProcessor.from_pretrained('microsoft/trocar-small-printed',cache_dir="./working_dir")
         # self.vocab = self.processor.tokenizer.get_vocab()
         ##self.model = VisionEncoderDecoderModel.from_pretrained(model_path, torchscript=True)
         # self.model = VisionEncoderDecoderModel.from_pretrained('microsoft/trocr-small-printed',cache_dir="./working_dir")
-
         pass
 
     def convert(self, test_data_path=r"./assert"):
@@ -28,6 +28,7 @@ class ConvertOnnx(object):
             images.append(Image.open(os.path.join(test_data_path, filename)).convert("RGB"))
             if len(images) >= self.batch_size:
                 break
+        #self.infer(images)
         self.onnx_export(images)
 
     def infer(self, images):
@@ -52,7 +53,7 @@ class ConvertOnnx(object):
         decoder_input_ids = torch.ones((self.batch_size, 1), dtype=torch.long,
                                        device="cpu") * self.decoder_start_token_id
 
-        onnx_file = "./model/onnx/TrOCR.onnx"
+        onnx_file = os.path.join(self.onnx_model_path, "TrOCR.onnx")
         onnx_dummy_inputs = (
             pixel_values,
             decoder_input_ids,
@@ -83,3 +84,4 @@ class ConvertOnnx(object):
         import onnx
         net = onnx.load(onnx_file)
         onnx.checker.check_model(net)
+
