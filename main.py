@@ -9,7 +9,7 @@ if __name__ == '__main__':
     onnx_enhance.convert(r'./assert')  # onnx export and verify
     # onnx to trt.plan
     trt_enhance = TrtEnhance(r"./model/onnx", r'./model/trt')
-    trt_enhance.convert(rebuild=False)
+    trt_enhance.convert(rebuild=True)
 
     # generate npz input and output
     onnx_execute = OnnxExecute(r"./model/onnx", r"TrOCR.onnx", r"./assert")
