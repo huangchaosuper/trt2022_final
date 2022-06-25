@@ -1,5 +1,4 @@
 FROM nvcr.io/nvidia/tensorrt:22.04-py3
 MAINTAINER huangchaosuper@live.cn
 RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu115
-RUN pip3 install -r requirements.txt --extra-index-url https://pypi.ngc.nvidia.com
 CMD bash
