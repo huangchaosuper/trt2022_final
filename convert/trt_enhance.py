@@ -5,7 +5,7 @@ import tensorrt as trt
 
 class TrtEnhance(object):
     def __init__(self, onnx_model_path, trt_model_path):
-        self.onnx_model_file = os.path.join(onnx_model_path, "TrOCR.onnx")
+        self.onnx_model_file = os.path.join(onnx_model_path, "TrOCR_LayerNorm.onnx")
         self.trt_model_path = trt_model_path
         self.logger = trt.Logger(trt.Logger.ERROR)
         pass

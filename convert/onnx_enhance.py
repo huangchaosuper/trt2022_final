@@ -18,8 +18,8 @@ class OnnxEnhance(object):
         self.pretrained_model_path = pretrained_model_path
         self.model_path = pt_model_path
         self.onnx_model_path = onnx_model_path
-        self.onnx_file = os.path.join(self.onnx_model_path, "TrOCR_Level1.onnx")
-        self.export_model_path = os.path.join(self.onnx_model_path, "TrOCR.onnx")
+        self.onnx_file = os.path.join(self.onnx_model_path, "TrOCR.onnx")
+        self.export_model_path = os.path.join(self.onnx_model_path, "TrOCR_LayerNorm.onnx")
         self.nLayerNorm = 0
         self.batch_size = 1
         self.decoder_start_token_id = 0
