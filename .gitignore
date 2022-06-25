@@ -134,3 +134,4 @@ test_data
 .npz
 
 test.py
+model.zip

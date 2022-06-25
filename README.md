@@ -196,3 +196,57 @@ r2: median of relative difference of output 2
 
 
 ```
+
+
+
+- 在A10显卡上TRT执行效率如下
+
+onnx throughput: 
+```python
+{1: 6.131140366666667, 4: 18.261202633333333, 8: 33.45934226666667, 16: 63.76021446666666}
+```
+
+TF32 throughput 及 精度对比
+```shell
+  bs: Batch Size
+  lt: Latency (ms)
+  tp: throughput (word/s)
+  a0: maximum of absolute difference of output 0
+  r0: median of relative difference of output 0
+  a1: maximum of absolute difference of output 1
+  r1: median of relative difference of output 1
+  a2: maximum of absolute difference of output 2
+  r2: median of relative difference of output 2
+  ----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
+    bs|      lt|       tp|       a0|       r0|       a1|       r1|       a2|       r2| output check
+  ----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
+
+   1,   4.353,2.297e+02,5.441e-03,2.674e-04,8.064e-03,1.337e-03,4.502e-04,1.212e-03, Good
+  16,  51.081,3.132e+02,8.971e-03,2.058e-04,2.893e-02,1.413e-03,8.622e-04,1.019e-03, Good
+   4,  14.200,2.817e+02,6.779e-03,9.979e-05,3.457e-02,1.367e-03,5.184e-04,7.919e-04, Good
+   8,  26.003,3.077e+02,1.028e-02,3.502e-04,2.893e-02,1.403e-03,8.550e-04,1.046e-03, Good
+
+```
+
+FP16 throughput 及 精度对比
+
+```shell
+  bs: Batch Size
+  lt: Latency (ms)
+  tp: throughput (word/s)
+  a0: maximum of absolute difference of output 0
+  r0: median of relative difference of output 0
+  a1: maximum of absolute difference of output 1
+  r1: median of relative difference of output 1
+  a2: maximum of absolute difference of output 2
+  r2: median of relative difference of output 2
+  ----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
+    bs|      lt|       tp|       a0|       r0|       a1|       r1|       a2|       r2| output check
+  ----+--------+---------+---------+---------+---------+---------+---------+---------+-------------
+
+   1,   2.532,3.950e+02,7.964e+00,2.103e-01,3.056e+00,1.107e+00,4.955e-01,1.311e+00, Bad
+  16,  27.372,5.845e+02,1.228e+01,3.228e-01,4.957e+00,1.130e+00,5.964e-01,1.236e+00, Bad
+   4,   7.599,5.264e+02,1.067e+01,2.547e-01,4.670e+00,1.119e+00,5.950e-01,1.227e+00, Bad
+   8,  13.749,5.819e+02,1.229e+01,3.165e-01,4.669e+00,1.130e+00,5.965e-01,1.237e+00, Bad
+
+```

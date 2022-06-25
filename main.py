@@ -7,6 +7,7 @@ if __name__ == '__main__':
     # pt to onnx
     onnx_enhance = OnnxEnhance(r"./model/weights_chineseocr", r"./model/weights_chineseocr", r"./model/onnx")
     onnx_enhance.convert(r'./assert')  # onnx export and verify
+    onnx_enhance.enhance()
     # onnx to trt.plan
     trt_enhance = TrtEnhance(r"./model/onnx", r'./model/trt')
     trt_enhance.convert(rebuild=True)
