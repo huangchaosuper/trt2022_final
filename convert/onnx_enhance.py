@@ -105,8 +105,8 @@ class OnnxEnhance(object):
             if node.op == "Div" and node.name == break_node_name:
                 break_node = node
 
-        plugin_variable = gs.Variable("HCLayerNorm-%d" % self.nLayerNorm, np.dtype(np.float32), None)
-        plugin_node = gs.Node("HCLayerNorm", "HCLayerNorm-%d" % self.nLayerNorm, inputs=[start_node.outputs[0]],
+        plugin_variable = gs.Variable("LayerNorm-%d" % self.nLayerNorm, np.dtype(np.float32), None)
+        plugin_node = gs.Node("LayerNorm", "LayerNorm-%d" % self.nLayerNorm, inputs=[start_node.outputs[0]],
                               outputs=[plugin_variable], attrs={"epsilon": np.array([0.000009999999747378752])})
         graph.nodes.append(plugin_node)
         stop_node.inputs[0] = plugin_variable
