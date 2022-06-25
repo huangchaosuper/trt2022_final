@@ -1,7 +1,10 @@
+import ctypes
 from convert.onnx_enhance import OnnxEnhance
 from convert.trt_enhance import TrtEnhance
 from execute.onnx_execute import OnnxExecute
 from execute.trt_execute import TrtExecute
+
+ctypes.cdll.LoadLibrary("./LayerNormPlugin.so")
 
 if __name__ == '__main__':
     # pt to onnx

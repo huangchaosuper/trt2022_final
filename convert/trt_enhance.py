@@ -14,13 +14,25 @@ class TrtEnhance(object):
         self.build_tf32_network(rebuild)
         self.build_fp16_mix_network(rebuild)
 
+    def get_plugin_creator(self, plugin_name):
+        trt.init_libnvinfer_plugins(self.logger, '')
+        plugin_creator_list = trt.get_plugin_registry().plugin_creator_list
+        creator = None
+        for c in plugin_creator_list:
+            if c.name == plugin_name:
+                creator = c
+        return creator
+
     def build_tf32_network(self, rebuild):
         trt_model_file = os.path.join(self.trt_model_path, "TrOCR.tf32.plan")
         if rebuild:
             builder = trt.Builder(self.logger)
+            plugin_creator = self.get_plugin_creator('LayerNorm')
             network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
             profile = builder.create_optimization_profile()
-
+            if plugin_creator is None:
+                print("Plugin CustomPlugin not found.")
+                exit()
             parser = trt.OnnxParser(network, self.logger)
             if not os.path.exists(self.onnx_model_file):
                 print("Failed finding onnx file!")
@@ -77,9 +89,12 @@ class TrtEnhance(object):
         trt_model_file = os.path.join(self.trt_model_path, "TrOCR.fp16.plan")
         if rebuild:
             builder = trt.Builder(self.logger)
+            plugin_creator = self.get_plugin_creator('LayerNorm')
             network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
             profile = builder.create_optimization_profile()
-
+            if plugin_creator is None:
+                print("Plugin CustomPlugin not found.")
+                exit()
             parser = trt.OnnxParser(network, self.logger)
             if not os.path.exists(self.onnx_model_file):
                 print("Failed finding onnx file!")
