@@ -29,5 +29,5 @@ cuda-python==11.6.1
 nvidia-tensorrt==8.2.3.0
 onnxruntime-gpu==1.11.1
 onnx==1.11.0
-onnxsim
+onnx-simplifier
 onnx-graphsurgeon
