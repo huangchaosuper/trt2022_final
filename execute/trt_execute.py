@@ -54,11 +54,11 @@ class TrtExecute(object):
 
             context.set_binding_shape(0, pixel_values.shape)
             context.set_binding_shape(1, decoder_input_ids.shape)
-            #for i in range(nInput + nOutput):
+            # for i in range(nInput + nOutput):
             #    print("Input ->" if self.engine.binding_is_input(i) else "Output->", self.engine.get_binding_dtype(i),
             #          self.engine.get_binding_shape(i), context.get_binding_shape(i), self.engine.get_binding_dtype(i),
             #          self.engine.get_binding_name(i))
-            #print("Finish all input binding: %s" % context.all_binding_shapes_specified)
+            # print("Finish all input binding: %s" % context.all_binding_shapes_specified)
 
             bufferH = []
             bufferH.append(pixel_values.astype(np.float32).reshape(-1))
@@ -96,23 +96,17 @@ class TrtExecute(object):
             last_hidden_state = self.engine.get_binding_index('last_hidden_state')
             pooler_output = self.engine.get_binding_index('pooler_output')
 
-            check0 = self.check(bufferH[generated_ids], io_data['generated_ids'], True, 5e-5)
-            check1 = self.check(bufferH[last_hidden_state], io_data['last_hidden_state'], True, 5e-5)
-            check2 = self.check(bufferH[pooler_output], io_data['pooler_output'], True, 5e-5)
+            check00, check01, check02 = self.check(bufferH[generated_ids], io_data['generated_ids'], True, 5e-5)
+            check10, check11, check12 = self.check(bufferH[last_hidden_state], io_data['last_hidden_state'], True, 5e-5)
+            check20, check21, check22 = self.check(bufferH[pooler_output], io_data['pooler_output'], True, 5e-5)
 
-            string = "%4d,%8.3f,%9.3e,%9.3e,%9.3e,%9.3e,%9.3e,%9.3e,%9.3e, %s" % (batch_size,
-                                                                                  timePerInference,
-                                                                                  batch_size / timePerInference * 1000,
-                                                                                  check0[1], check0[2], check1[1],
-                                                                                  check1[2], check2[1], check2[2],
-                                                                                  "Good" if check0[1] < 3.5e-2 and
-                                                                                            check0[2] < 2e-3 and check1[
-                                                                                                1] < 1e-1 and check1[
-                                                                                                2] < 1e-1 and check2[
-                                                                                                1] < 1e-1 and check2[
-                                                                                                2] < 1e-1 else "Bad")
+            string = "%4d,%8.3f,%9.3e,%9.3e,%9.3e,%9.3e,%9.3e,%9.3e,%9.3e, %s" % \
+                     (batch_size, timePerInference, batch_size / timePerInference * 1000,
+                      check01, check02, check11, check12, check21, check22,
+                      "Good" if check01 < 3.5e-1 and check02 < 2e-3 \
+                                and check11 < 3.5e-1 and check12 < 1e-1 \
+                                and check21 < 1e-1 and check22 < 1e-1 else "Bad")
             print(string)
-
             for i in range(nInput + nOutput):
                 cudart.cudaFree(bufferD[i])
 

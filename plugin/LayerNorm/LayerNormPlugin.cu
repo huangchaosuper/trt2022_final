@@ -9,7 +9,7 @@ template<typename T, int X,int STEP>
 __global__ void layerNormKernelV1(T *pInput, T *pOutput)
 {
     const int threadId = threadIdx.x;
-    const int M = blockDim.x; //M=256
+    const int M = blockDim.x; //M=256,384
     const int idx = threadId + M*blockIdx.x;
     __shared__ T mean_shared, var_shared;
     typedef cub::BlockReduce<T, X, cub::BLOCK_REDUCE_WARP_REDUCTIONS> BlockReduce;
@@ -19,12 +19,11 @@ __global__ void layerNormKernelV1(T *pInput, T *pOutput)
     T sum  = BlockReduce(temp_storage).Sum(ref0);
     if(threadId == 0)
     {
-        mean_shared =(T)sum / (T)(M);
-        //mean_shared =(T)sum;
+        mean_shared =(T)sum;
         //printf("M=%d,mean_shared=%f ",M,mean_shared);
     }
     __syncthreads();
-    const T moment = (T)(pInput[idx] - mean_shared);
+    const T moment = (T)(pInput[idx] - mean_shared)/(T)(M);
     T moment2 = moment * moment;
     //T tmp2 = moment2/(T)(M);
     T &ref1 = moment2;
@@ -32,13 +31,13 @@ __global__ void layerNormKernelV1(T *pInput, T *pOutput)
     //T  var  = BlockReduce(temp_storage).Sum(ref1);
     if (threadId == 0)
     {
-        var_shared =(T)var / (T)(M);
-        //var_shared =(T)var;
+        //var_shared =(T)var / (T)(M);
+        var_shared =(T)var;
         //printf("var_shared=%.5f ",var_shared);
     }
     __syncthreads();
-    //pOutput[idx] = (pInput[idx] - mean_shared) / ((T)sqrtf(var_shared + (T)1e-7)*(T)16);
-    pOutput[idx] = moment * (T)rsqrtf(var_shared + (T)1e-7);
+    //pOutput[idx] = (pInput[idx] - mean_shared) / ((T)sqrtf(var_shared + (T)1e-7)*(T)(M);
+    pOutput[idx] = (T)(pInput[idx] - mean_shared) * (T)rsqrtf(var_shared*(T)(M) + (T)1e-7);
 }
 
 template<typename T, int X, int STEP>
