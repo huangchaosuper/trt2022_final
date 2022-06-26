@@ -19,12 +19,12 @@ __global__ void layerNormKernelV1(T *pInput, T *pOutput)
     T sum  = BlockReduce(temp_storage).Sum(ref0);
     if(threadId == 0)
     {
-        //mean_shared =(T)sum / (T)(M);
-        mean_shared =(T)sum;
+        mean_shared =(T)sum / (T)(M);
+        //mean_shared =(T)sum;
         //printf("M=%d,mean_shared=%f ",M,mean_shared);
     }
     __syncthreads();
-    const T moment = (pInput[idx] - mean_shared)/(T)256;
+    const T moment = (T)(pInput[idx] - mean_shared);
     T moment2 = moment * moment;
     //T tmp2 = moment2/(T)(M);
     T &ref1 = moment2;
@@ -32,12 +32,13 @@ __global__ void layerNormKernelV1(T *pInput, T *pOutput)
     //T  var  = BlockReduce(temp_storage).Sum(ref1);
     if (threadId == 0)
     {
-        //var_shared =(T)var / (T)(M);
-        var_shared =(T)var;
+        var_shared =(T)var / (T)(M);
+        //var_shared =(T)var;
         //printf("var_shared=%.5f ",var_shared);
     }
     __syncthreads();
-    pOutput[idx] = (pInput[idx] - mean_shared) / ((T)sqrtf(var_shared + (T)1e-7)*(T)16);
+    //pOutput[idx] = (pInput[idx] - mean_shared) / ((T)sqrtf(var_shared + (T)1e-7)*(T)16);
+    pOutput[idx] = moment * (T)rsqrtf(var_shared + (T)1e-7);
 }
 
 template<typename T, int X, int STEP>
@@ -144,7 +145,7 @@ int32_t LayerNormPlugin::enqueue(const PluginTensorDesc *inputDesc, const Plugin
     for (int i = 2; i < inputDesc[0].dims.nbDims; ++i)
     {
         nBlock *= inputDesc[0].dims.d[i];
-        //printf("inputDesc[0].dims.d[i] =[%d]", inputDesc[0].dims.d[i]);
+        //printf("inputDesc[0].dims.d[%d] =[%d]",i , inputDesc[0].dims.d[i]);
     }
     //printf("nGrid:[%d],nBlock:[%d]\n", nGrid, nBlock);
     //nElement = nGrid * nBlock;
@@ -162,41 +163,27 @@ int32_t LayerNormPlugin::enqueue(const PluginTensorDesc *inputDesc, const Plugin
     }*/
     //dim3 block_size_v2(CEIL_DIVIDE(nBlock, 4), 4, 1);
     //dim3 block_size_v3(CEIL_DIVIDE(nBlock, 16), 4, 4);
+    /*
     switch (inputDesc[0].type)
     {
     case DataType::kFLOAT:
-        (layerNormKernelV3<float, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0]);
+        (layerNormKernelV1<float, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0]);
         break;
     default:
-        (layerNormKernelV3<half, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((half *)inputs[0], (half *)outputs[0]);
+        (layerNormKernelV1<half, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((half *)inputs[0], (half *)outputs[0]);
         break;
     }
-    /*
+    */
     if (inputDesc[0].type == DataType::kFLOAT)
     {
-        switch (nGrid)
+        switch (nBlock)
         {
-        case 3:
-        case 15:
-        case 63:
-            (layerNormKernelV2<float, 16, 16>)<<<nGrid, nBlock/16, 0, stream>>>((float *)inputs[0], (float *)outputs[0], epsilon_);
+        case 256:
+            (layerNormKernelV1<float, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0]);
             break;
-        case 12:
-        case 60:
-        case 252:
-            (layerNormKernelV1<float, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0], epsilon_);
+        case 384:
+            (layerNormKernelV1<float, 384, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0]);
             break;
-        case 48:
-        case 240:
-        case 1008:
-            (layerNormKernelV1<float, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0], epsilon_);
-            break;
-        case 630:
-        case 2520:
-        case 10080:
-            (layerNormKernelV1<float, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0], epsilon_);
-            break;
-
         default: // shoulf NOT be here
             printf("[LayerNormPlugin::enqueue] nGrid = %d is not supported\n", nGrid);
             break;
@@ -204,34 +191,19 @@ int32_t LayerNormPlugin::enqueue(const PluginTensorDesc *inputDesc, const Plugin
     }
     else
     {
-        switch (nGrid)
+        switch (nBlock)
         {
-        case 3:
-        case 15:
-        case 63:
-            (layerNormKernelV2<float, 16, 16>)<<<nGrid, nBlock/16, 0, stream>>>((float *)inputs[0], (float *)outputs[0], epsilon_);
+        case 256:
+            (layerNormKernelV1<half, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((half *)inputs[0], (half *)outputs[0]);
             break;
-        case 12:
-        case 60:
-        case 252:
-            (layerNormKernelV1<float, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0], epsilon_);
-            break;
-        case 48:
-        case 240:
-        case 1008:
-            (layerNormKernelV1<float, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0], epsilon_);
-            break;
-        case 630:
-        case 2520:
-        case 10080:
-            (layerNormKernelV1<float, 256, 1>)<<<nGrid, nBlock, 0, stream>>>((float *)inputs[0], (float *)outputs[0], epsilon_);
+        case 384:
+            (layerNormKernelV1<half, 384, 1>)<<<nGrid, nBlock, 0, stream>>>((half *)inputs[0], (half *)outputs[0]);
             break;
         default: // shoulf NOT be here
             printf("[LayerNormPlugin::enqueue] nGrid = %d is not supported\n", nGrid);
             break;
         }
     }
-    */
     return 0;
 }
 

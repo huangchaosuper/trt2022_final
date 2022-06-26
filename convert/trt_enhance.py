@@ -5,7 +5,8 @@ import tensorrt as trt
 
 class TrtEnhance(object):
     def __init__(self, onnx_model_path, trt_model_path):
-        self.onnx_model_file = os.path.join(onnx_model_path, "TrOCR_LayerNorm.onnx")
+        self.tf32_onnx_model_file = os.path.join(onnx_model_path, "TrOCR.onnx")
+        self.fp16_onnx_model_file = os.path.join(onnx_model_path, "TrOCR4fp16.onnx")
         self.trt_model_path = trt_model_path
         self.logger = trt.Logger(trt.Logger.ERROR)
         pass
@@ -27,18 +28,14 @@ class TrtEnhance(object):
         trt_model_file = os.path.join(self.trt_model_path, "TrOCR.tf32.plan")
         if rebuild:
             builder = trt.Builder(self.logger)
-            plugin_creator = self.get_plugin_creator('LayerNorm')
             network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
             profile = builder.create_optimization_profile()
-            if plugin_creator is None:
-                print("Plugin CustomPlugin not found.")
-                exit()
             parser = trt.OnnxParser(network, self.logger)
-            if not os.path.exists(self.onnx_model_file):
+            if not os.path.exists(self.tf32_onnx_model_file):
                 print("Failed finding onnx file!")
                 exit()
             print("Succeeded finding onnx file!")
-            with open(self.onnx_model_file, 'rb') as model:
+            with open(self.tf32_onnx_model_file, 'rb') as model:
                 if not parser.parse(model.read()):
                     print("Failed parsing .onnx file!")
                     for error in range(parser.num_errors):
@@ -96,11 +93,11 @@ class TrtEnhance(object):
                 print("Plugin CustomPlugin not found.")
                 exit()
             parser = trt.OnnxParser(network, self.logger)
-            if not os.path.exists(self.onnx_model_file):
+            if not os.path.exists(self.fp16_onnx_model_file):
                 print("Failed finding onnx file!")
                 exit()
             print("Succeeded finding onnx file!")
-            with open(self.onnx_model_file, 'rb') as model:
+            with open(self.fp16_onnx_model_file, 'rb') as model:
                 if not parser.parse(model.read()):
                     print("Failed parsing .onnx file!")
                     for error in range(parser.num_errors):

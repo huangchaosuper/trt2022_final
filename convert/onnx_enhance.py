@@ -19,7 +19,7 @@ class OnnxEnhance(object):
         self.model_path = pt_model_path
         self.onnx_model_path = onnx_model_path
         self.onnx_file = os.path.join(self.onnx_model_path, "TrOCR.onnx")
-        self.export_model_path = os.path.join(self.onnx_model_path, "TrOCR_LayerNorm.onnx")
+        self.export_model_path = os.path.join(self.onnx_model_path, "TrOCR4fp16.onnx")
         self.nLayerNorm = 0
         self.batch_size = 1
         self.decoder_start_token_id = 0
@@ -37,6 +37,8 @@ class OnnxEnhance(object):
         model = onnx.load(self.onnx_file)
         # simplify onnx model --input-shape speech:4,64,80 speech_lengths:4
         graph = gs.import_onnx(model)
+        graph.fold_constants().toposort().cleanup()  # 常量折叠并进行拓扑排序
+        onnx.save(gs.export_onnx(graph), self.onnx_file)
         graph = self.graph_replace_layernorm_node(graph)
         graph.fold_constants().toposort().cleanup()  # 常量折叠并进行拓扑排序
         onnx.save(gs.export_onnx(graph), self.export_model_path)
