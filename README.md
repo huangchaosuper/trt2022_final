@@ -145,6 +145,12 @@ trtexec \
   - 编写插件`LayerNorm`并在算子内部避免了精度溢出。
 
 
+- 过程文件存储在`model`文件夹
+  - onnx目录下TrOCR.onnx为支持FP32，TF32的ONNX模型文件
+  - onnx目录下TrOCR4fp16.onnx为支持FP16的ONNX模型文件
+  - trt目录下TrOCR.tf32.plan为支持FP32，TF32的TRT模型文件
+  - trt目录下TrOCR.fp16.plan为支持FP16的TRT模型文件
+
 
 ## 精度与加速效果
 
