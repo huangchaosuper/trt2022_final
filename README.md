@@ -29,13 +29,38 @@
 
 ``clone``本项目后，执行``start.sh``（若为windows，请参考start.sh内容在windows下复现）
 
+
+```shell
+wget https://github.com/huangchaosuper/trt2022_final/releases/download/0.0.1.20220525/model.zip
+unzip -o model.zip
+mkdir -p ./model/onnx
+mkdir -p ./model/trt
+wget https://github.com/huangchaosuper/trt2022_final/releases/download/0.0.1.20220525/test_data.zip
+unzip -o test_data.zip
+docker build -t trt2022_final_base:20220625 -f ./dockerfile_base .
+docker build -t trt2022_final:20220625 .
+docker run --gpus all -it -d --name trt2022_final_20220625 trt2022_final:20220625 bash
+docker exec -it trt2022_final_20220625 bash
+```
+
 #### 第N次执行此项目（N>1）
 
 执行``restart.sh``
 
+```shell
+docker start -i trt2022_final_20220625
+docker exec -it trt2022_final_20220625 bash
+```
+
 #### 清理本地环境
 
 执行``clear.sh``
+
+```shell
+docker stop trt2022_final_20220625
+docker rm trt2022_final_20220625
+docker rmi trt2022_final:20220625
+```
 
 #### 执行原始模型`helloworld`
 
@@ -54,6 +79,21 @@ python3 test.py
 cd /workspace
 bash build.sh
 ```
+
+build.sh
+
+```shell
+##若无法识别掉onnxruntime-gpu可能是cpu版本和gpu版本同时安装，请在容器内执行以下重新安装
+pip3 uninstall -y -q onnxruntime onnxruntime-gpu
+pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple onnxruntime-gpu
+
+rm -f LayerNormPlugin.so
+cd ./plugin/LayerNorm && make clean && make && cp LayerNormPlugin.so ../../ && cd ../../
+
+python onnx_exec.py
+python trt_exec.py
+```
+
 
 ## 原始模型
 ### 模型简介
@@ -306,3 +346,50 @@ FP16 使用自定义LayerNorm插件后，精度差异及 throughput
    4,   9.332,4.286e+02,9.352e-02,1.516e-03,3.307e-01,1.147e-02,8.910e-03,9.156e-03, Good
    8,  16.354,4.892e+02,9.131e-02,1.363e-03,3.157e-01,1.150e-02,8.865e-03,7.560e-03, Good
 ```
+
+
+## BUG报告
+
+https://github.com/NVIDIA/trt-samples-for-hackathon-cn/issues/37
+
+在python脚本中，当同时引用`onnxsim`和 `tensorrt`会`Aborted (core dumped)`，分开两个脚本则无问题
+
+#### 复现步骤
+
+参考`bug.py`
+
+```python
+from onnxsim import simplify
+import tensorrt as trt
+
+if __name__ == '__main__':
+    pass
+
+```
+
+`python bug.py`
+
+```shell
+XXXXXXXXXX:/workspace# python bug.py 
+free(): invalid pointer
+Aborted (core dumped)
+
+```
+
+`pip3 list|grep onnx-sim`
+```shell
+XXXXXXXXXX:/workspace# pip3 list|grep onnx-sim
+onnx-simplifier           0.3.10
+```
+
+`pip3 list|grep tensorrt`
+
+```shell
+XXXXXXXXXX:/workspace# pip3 list|grep tensorrt
+nvidia-tensorrt           8.2.4.2
+tensorrt                  8.2.4.2
+```
+
+
+
+
