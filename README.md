@@ -2,8 +2,10 @@
 ## 总述
 该项目为TrOCR模型的TensorRT推理版本实现
 - 原始模型名称及链接： https://github.com/microsoft/unilm/tree/master/trocr
-- 本项目使用模型： https://github.com/chineseocr/trocr-chinese
-- 本项目使用测试数据集： https://aistudio.baidu.com/aistudio/datasetdetail/87750
+- 本项目使用模型：https://github.com/huangchaosuper/trt2022_final/releases/download/0.0.1.20220525/model.zip
+  - 模型来源：https://github.com/chineseocr/trocr-chinese
+- 本项目使用测试数据集：https://github.com/huangchaosuper/trt2022_final/releases/download/0.0.1.20220525/test_data.zip
+  - 数据集来源：https://aistudio.baidu.com/aistudio/datasetdetail/87750
 - 优化效果（精度和加速比）： A10环境下：(按照`batchsize = 8`统计 )
 
   - TF32 精度可接受，性能提升 23.65%
